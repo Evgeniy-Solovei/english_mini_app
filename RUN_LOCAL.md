@@ -12,7 +12,7 @@ python manage.py migrate
 python manage.py load_initial_content
 ```
 
-Mini App: `http://127.0.0.1:8000/miniapp/`.
+Mini App: `http://127.0.0.1:8001/miniapp/`.
 
 ## Запуск Django без контейнера
 
