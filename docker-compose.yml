@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-english_bot}
+      POSTGRES_USER: ${POSTGRES_USER:-english_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-english_bot} -d ${POSTGRES_DB:-english_bot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - backend
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_NAME: ${POSTGRES_DB:-english_bot}
+      DB_USER: ${POSTGRES_USER:-english_bot}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DB_HOST: db
+      DB_PORT: 5432
+      DATABASE_URL: ""
+      LOAD_INITIAL_DATA: ${LOAD_INITIAL_DATA:-1}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+    networks:
+      - backend
+
+volumes:
+  pg_data:
+  media_data:
+
+networks:
+  backend:
+    driver: bridge

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>English Journey</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/miniapp/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div class="greeting">
+          <span class="wave" id="greeting-emoji">👋</span>
+          <div>
+            <p class="greeting-sub" id="hdr-welcome">С возвращением</p>
+            <h1 id="user-name">Learner</h1>
+          </div>
+        </div>
+        <div class="streak-badge" id="streak-badge">
+          <span class="streak-fire">🔥</span>
+          <span id="streak-count">1</span>
+          <span id="streak-unit">дн.</span>
+        </div>
+      </div>
+
+      <div class="level-card">
+        <div class="level-info">
+          <span class="level-tag" id="level-tag">Pre-A1</span>
+          <span class="level-name" id="level-name">Pre-A1 (С нуля)</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="level-progress" style="width: 0%"></div>
+        </div>
+        <div class="level-stats">
+          <span id="level-pct">0%</span>
+          <span id="xp-count">0 XP</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="home" id="tab-btn-home">
+        <span class="nav-tab-icon">🏠</span>
+        <span class="nav-tab-label" id="lbl-tab-home">Главная</span>
+      </button>
+      <button class="nav-tab" data-tab="speak" id="tab-btn-speak">
+        <span class="nav-tab-icon">🎤</span>
+        <span class="nav-tab-label" id="lbl-tab-speak">Разговор</span>
+      </button>
+      <button class="nav-tab" data-tab="lessons" id="tab-btn-lessons">
+        <span class="nav-tab-icon">📚</span>
+        <span class="nav-tab-label" id="lbl-tab-lessons">Уроки</span>
+      </button>
+      <button class="nav-tab" data-tab="library" id="tab-btn-library">
+        <span class="nav-tab-icon">📖</span>
+        <span class="nav-tab-label" id="lbl-tab-library">Чтение</span>
+      </button>
+      <button class="nav-tab" data-tab="profile" id="tab-btn-profile">
+        <span class="nav-tab-icon">👤</span>
+        <span class="nav-tab-label" id="lbl-tab-profile">Профиль</span>
+      </button>
+    </nav>
+
+    <!-- Tab 1: Home -->
+    <section class="tab-content active" id="tab-home">
+      <div class="daily-card" id="daily-card">
+        <div class="daily-text">
+          <h3 id="home-daily-title">Дневная цель</h3>
+          <p id="daily-goal-text">0 / 20 мин</p>
+        </div>
+        <button class="btn-primary" id="btn-start-daily">Начать</button>
+      </div>
+
+      <div class="daily-card speak-card" id="speak-card">
+        <div class="daily-text">
+          <h3 id="home-speak-title">Разговорная практика</h3>
+          <p id="speak-goal-hint">Занимайтесь говорением 10 мин</p>
+        </div>
+        <button class="btn-primary btn-speak-act" id="btn-start-speak">Говорить</button>
+      </div>
+
+      <div class="section-title" id="lbl-quick-start">Быстрый старт</div>
+      <div class="quick-grid">
+        <div class="quick-card" data-action="speak">
+          <span class="card-icon">🎤</span>
+          <div class="quick-card-text">
+            <h4 id="lbl-qs-speak">Разговор</h4>
+            <p id="sub-qs-speak">Диалоги и фразы</p>
+          </div>
+        </div>
+        <div class="quick-card" data-action="shadow">
+          <span class="card-icon">🎧</span>
+          <div class="quick-card-text">
+            <h4 id="lbl-qs-shadow">Повторение</h4>
+            <p id="sub-qs-shadow">Тренировка произношения</p>
+          </div>
+        </div>
+        <div class="quick-card" data-action="exam">
+          <span class="card-icon">🏆</span>
+          <div class="quick-card-text">
+            <h4 id="lbl-qs-exam">Экзамен</h4>
+            <p id="sub-qs-exam">Проверка уровня</p>
+          </div>
+        </div>
+        <div class="quick-card" id="card-review">
+          <span class="card-icon">🧠</span>
+          <div class="quick-card-text">
+            <h4 id="lbl-qs-review">Словарь</h4>
+            <p id="sub-qs-review">Повторение слов</p>
+          </div>
+          <span class="badge" id="due-count">0</span>
+        </div>
+      </div>
+
+      <div class="section-title" id="lbl-skills-title">Прогресс навыков</div>
+      <div class="skills-grid" id="skills-grid"></div>
+    </section>
+
+    <!-- Tab 2: Speak -->
+    <section class="tab-content" id="tab-speak">
+      <div class="speak-tabs">
+        <button class="speak-subtab active" data-speak="shadow" id="subtab-shadow">
+          <span>🎧 Повтор за фразой</span>
+        </button>
+        <button class="speak-subtab" data-speak="talk" id="subtab-talk">
+          <span>💬 Диалоги</span>
+        </button>
+        <button class="speak-subtab" data-speak="phonetics" id="subtab-phonetics">
+          <span>👄 Звуки</span>
+        </button>
+      </div>
+
+      <div id="speak-panel-shadow">
+        <p class="panel-hint" id="hint-shadow">Слушайте английскую фразу → повторяйте вслух → получайте оценку произношения</p>
+        <div id="packs-list" class="packs-list"></div>
+      </div>
+
+      <div id="speak-panel-talk" class="hidden">
+        <p class="panel-hint" id="hint-talk">Ролевые диалоги — отвечайте голосом или текстом на английском языке</p>
+        <div id="dialogues-list" class="packs-list"></div>
+      </div>
+
+      <div id="speak-panel-phonetics" class="hidden">
+        <p class="panel-hint" id="hint-phonetics">Разбор сложных звуков английского языка: TH, W/V, гласные</p>
+        <div id="phonetics-list" class="packs-list"></div>
+      </div>
+    </section>
+
+    <!-- Tab 3: Lessons -->
+    <section class="tab-content" id="tab-lessons">
+      <div class="section-title" id="lbl-select-level">Выберите уровень</div>
+      <div class="level-pills" id="lessons-level-pills"></div>
+      <div class="section-title" style="margin-top:12px" id="lbl-lessons-heading">Уроки</div>
+      <div id="lessons-list" class="lessons-list"></div>
+    </section>
+
+    <!-- Tab 4: Library -->
+    <section class="tab-content" id="tab-library">
+      <div class="library-tabs">
+        <button class="lib-tab active" data-lib="books" id="lib-tab-books">
+          <span>📚 Книги</span>
+        </button>
+        <button class="lib-tab" data-lib="words" id="lib-tab-words">
+          <span>🔤 Мой словарь</span>
+        </button>
+      </div>
+      <div id="library-books" class="books-grid"></div>
+      <div id="library-words" class="words-list hidden"></div>
+    </section>
+
+    <!-- Tab 5: Profile & Settings -->
+    <section class="tab-content" id="tab-profile">
+      <!-- Inline Profile Settings Block -->
+      <div class="settings-card" id="profile-settings-card">
+        <h3 class="settings-card-title" id="lbl-settings-header">⚙️ Настройки приложения</h3>
+        
+        <div class="settings-group">
+          <label class="settings-label" id="lbl-settings-lang">Язык интерфейса / App Language</label>
+          <div class="settings-options" id="lang-options">
+            <button class="settings-opt-btn" data-lang="ru">🇷🇺 Русский</button>
+            <button class="settings-opt-btn" data-lang="en">🇬🇧 English</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label" id="lbl-settings-level">Уровень обучения / Course Level</label>
+          <div class="settings-options" id="level-options"></div>
+          <small class="settings-note" id="settings-level-note">Можно выбрать любой уже опубликованный курс. Прогресс других уровней сохранится.</small>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label" id="lbl-settings-goal">Дневная цель / Daily Goal</label>
+          <div class="settings-options" id="goal-options">
+            <button class="settings-opt-btn" data-goal="10">10 мин</button>
+            <button class="settings-opt-btn" data-goal="15">15 мин</button>
+            <button class="settings-opt-btn" data-goal="20">20 мин</button>
+            <button class="settings-opt-btn" data-goal="30">30 мин</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="profile-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-xp">0</span>
+          <span class="stat-label" id="lbl-stat-xp">Очки XP</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-streak">1</span>
+          <span class="stat-label" id="lbl-stat-streak">Дней подряд</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-best">1</span>
+          <span class="stat-label" id="lbl-stat-best">Рекорд дней</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-lessons">0</span>
+          <span class="stat-label" id="lbl-stat-lessons">Пройдено</span>
+        </div>
+      </div>
+
+      <div class="section-title" id="lbl-profile-skills-title">Прогресс по навыкам</div>
+      <div id="profile-skills" class="skills-detail"></div>
+    </section>
+
+    <!-- Review overlay -->
+    <div class="overlay hidden" id="review-overlay">
+      <div class="overlay-header">
+        <button class="btn-back" id="btn-back-review">← Назад</button>
+        <h2 id="lbl-review-title">Повторение слов</h2>
+      </div>
+      <div id="review-area">
+        <div class="review-empty" id="review-empty"><span>✨</span><p id="lbl-review-empty">Все карточки повторены!</p></div>
+        <div class="review-card hidden" id="review-card">
+          <div class="review-front" id="review-front"></div>
+          <div class="review-back hidden" id="review-back"></div>
+          <button class="btn-secondary" id="btn-show-answer">Показать перевод</button>
+          <div class="review-rating hidden" id="review-rating">
+            <p id="lbl-review-rating-q">Насколько хорошо вы знали слово?</p>
+            <div class="rating-buttons">
+              <button data-q="1">😓 Сложно</button>
+              <button data-q="3">🤔 Средне</button>
+              <button data-q="5">😊 Легко</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reading overlay -->
+    <div class="overlay hidden" id="reading-overlay">
+      <div class="overlay-header">
+        <button class="btn-back" id="btn-back-reading">← Назад</button>
+        <h2 id="reading-title">Книга</h2>
+      </div>
+      <div class="reading-meta" id="reading-meta"></div>
+      <div class="chapter-list" id="chapter-list"></div>
+      <div class="reading-text hidden" id="reading-text"></div>
+    </div>
+
+    <!-- Lesson overlay -->
+    <div class="overlay hidden" id="lesson-overlay">
+      <div class="overlay-header">
+        <button class="btn-back" id="btn-back-lesson">← Назад</button>
+        <h2 id="lesson-title">Урок</h2>
+      </div>
+      <div class="lesson-content" id="lesson-content"></div>
+      <div class="exercise-area" id="exercise-area"></div>
+    </div>
+
+    <!-- Shadow practice overlay -->
+    <div class="overlay hidden" id="shadow-overlay">
+      <div class="overlay-header">
+        <button class="btn-back" id="btn-back-shadow">← Назад</button>
+        <h2 id="shadow-title">Повторение за фразой</h2>
+      </div>
+      <div class="shadow-progress" id="shadow-progress-label">1 / 10</div>
+      <div class="shadow-card">
+        <div class="phrase-display" id="shadow-phrase">Hello</div>
+        <div class="phrase-ru" id="shadow-ru"></div>
+        <div class="phrase-phonetic" id="shadow-phonetic"></div>
+        <div class="phrase-tip" id="shadow-tip"></div>
+        <div class="shadow-actions">
+          <button class="btn-audio" id="btn-shadow-slow">🐢 Медленно</button>
+          <button class="btn-audio" id="btn-shadow-listen">🔊 Слушать</button>
+        </div>
+        <button class="btn-record" id="btn-shadow-record">🎤 Запись голоса</button>
+        <div class="score-card hidden" id="shadow-score"></div>
+        <div class="shadow-nav">
+          <button class="btn-back" id="btn-shadow-prev">← Назад</button>
+          <button class="btn-primary" id="btn-shadow-next">Далее →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialogue overlay -->
+    <div class="overlay hidden" id="dialogue-overlay">
+      <div class="overlay-header">
+        <button class="btn-back" id="btn-back-dialogue">← Назад</button>
+        <h2 id="dialogue-title">Диалог</h2>
+      </div>
+      <div class="chat-box" id="chat-box"></div>
+      <div class="dialogue-hint" id="dialogue-hint"></div>
+      <div class="dialogue-controls">
+        <button class="btn-record" id="btn-dialogue-record">🎤 Ответить голосом</button>
+        <button class="btn-secondary" id="btn-dialogue-type">⌨️ Ввести текстом</button>
+      </div>
+      <div class="type-reply hidden" id="type-reply-box">
+        <input class="fill-input" id="dialogue-text-input" placeholder="Введите на английском...">
+        <button class="btn-primary" id="btn-dialogue-send" style="width:100%;margin-top:8px">Отправить</button>
+      </div>
+      <div class="score-card hidden" id="dialogue-score"></div>
+    </div>
+
+    <!-- Exam overlay -->
+    <div class="overlay hidden" id="exam-overlay">
+      <div class="overlay-header">
+        <button class="btn-back" id="btn-back-exam">← Назад</button>
+        <h2 id="exam-title">Экзамен уровня</h2>
+      </div>
+      <div id="exam-content"></div>
+    </div>
+
+    <div class="toast hidden" id="toast"></div>
+  </div>
+  <script src="/static/miniapp/app.js"></script>
+</body>
+</html>
