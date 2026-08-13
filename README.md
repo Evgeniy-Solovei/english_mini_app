@@ -130,7 +130,8 @@ python manage.py seed_content
 python manage.py audit_curriculum
 ```
 
-Опционально точнее STT: `pip install openai-whisper` (иначе Google SpeechRecognition).
+На личном сервере STT использует Google SpeechRecognition без тяжёлого PyTorch.
+Локальный Whisper можно установить отдельно только на машине с достаточным диском и RAM.
 
 
 - `/start` — приветствие + кнопка мини-апп

@@ -9,8 +9,9 @@ cp .env.example .env
 В `.env` обязательно замените `SECRET_KEY`, `POSTGRES_PASSWORD`, `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET`. Значения домена уже указаны для `https://english-bot.live-dev.by`.
 
 Для neural TTS с разными голосами и фонемной проверки произношения также задайте
-`AZURE_SPEECH_KEY` и `AZURE_SPEECH_REGION`. Без них приложение работает через
-gTTS/Whisper, но показывает только приближённую оценку по распознанному тексту.
+`AZURE_SPEECH_KEY` и `AZURE_SPEECH_REGION`. Для личного сервера оставьте их пустыми:
+приложение работает через gTTS/Google SpeechRecognition и показывает приближённую
+оценку по распознанному тексту без тяжёлого PyTorch/Whisper в Docker-образе.
 
 ## 2. Запуск
 
