@@ -182,11 +182,12 @@ class ReadingText(models.Model):
         VOA = "voa", "VOA Learning English"
         MANUAL = "manual", "Manual"
         GRADED = "graded", "Graded Reader"
+        ENGLISH_JOURNEY_ORIGINAL = "english_journey_original", "English Journey Original"
 
     title = models.CharField(max_length=300)
     title_ru = models.CharField(max_length=300, blank=True)
     author = models.CharField(max_length=200, blank=True)
-    source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    source = models.CharField(max_length=30, choices=Source.choices, default=Source.MANUAL)
     source_id = models.CharField(max_length=50, blank=True, db_index=True)
     level = models.CharField(max_length=10, choices=CEFRLevel.choices, db_index=True)
     description = models.TextField(blank=True)

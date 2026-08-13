@@ -82,7 +82,7 @@ class Command(BaseCommand):
         for book in books:
             chapters = book["chapters"]
             ReadingText.objects.update_or_create(
-                source="english_journey_original",
+                source=ReadingText.Source.ENGLISH_JOURNEY_ORIGINAL,
                 source_id=book["source_id"],
                 defaults={
                     "title": book["title"],
@@ -99,7 +99,7 @@ class Command(BaseCommand):
 
         for source_id, title, title_ru, emoji, text, text_ru in SHORT_READERS:
             ReadingText.objects.update_or_create(
-                source="english_journey_original",
+                source=ReadingText.Source.ENGLISH_JOURNEY_ORIGINAL,
                 source_id=source_id,
                 defaults={
                     "title": title,
