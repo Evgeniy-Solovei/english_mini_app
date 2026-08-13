@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.learning.data.curriculum_v2 import SOURCES, UNITS
+from apps.learning.data.foundations_curriculum import FOUNDATION_UNITS
 from apps.learning.data.it_curriculum import IT_UNITS
 from apps.learning.data.translations_ru import TRANSLATIONS_RU
 from apps.learning.models import Exercise, Lesson, LevelExam, ReadingText, Word
@@ -23,7 +24,7 @@ KEYWORD_STOPWORDS = {
     "to", "was", "what", "you",
 }
 
-ALL_UNITS = UNITS + IT_UNITS
+ALL_UNITS = FOUNDATION_UNITS + UNITS + IT_UNITS
 
 
 class Command(BaseCommand):
@@ -69,10 +70,15 @@ class Command(BaseCommand):
                 title=f'{module["code"]} · {kind.title()}',
                 title_ru=f'{module["title"]}: {kind_title}',
                 description=module["can_do"],
-                category="dialogue" if kind == "mission" else ("listening" if kind == "input" else "speaking"),
+                category=(
+                    "alphabet" if module.get("foundation") and kind != "mission"
+                    else ("dialogue" if kind == "mission" else ("listening" if kind == "input" else "speaking"))
+                ),
                 content={
                     "curriculum_version": 3,
                     "module_code": module["code"],
+                    "track": module.get("track", "it" if module["code"].startswith("IT") else "main"),
+                    "foundation": module.get("foundation", False),
                     "lesson_kind": kind,
                     "can_do": module["can_do"],
                     "grammar": module["grammar"],
@@ -91,6 +97,21 @@ class Command(BaseCommand):
 
     def _blocks(self, module, kind):
         blocks = [{"type": "text", "title": "Цель", "body": module["can_do"]}]
+        if module.get("alphabet"):
+            blocks.append({
+                "type": "alphabet",
+                "title": module["title"],
+                "letters": [
+                    {"char": char, "sound": sound}
+                    for char, sound in module["alphabet"]
+                ],
+            })
+        if module.get("foundation_reading"):
+            blocks.append({
+                "type": "reading",
+                "title": "Как это читать",
+                "body": module["foundation_reading"],
+            })
         if kind == "build":
             blocks.append({"type": "text", "title": "Как строится фраза", "body": module["grammar"]})
         for english, russian in module["phrases"]:
@@ -281,7 +302,10 @@ class Command(BaseCommand):
         for answer in answers:
             keyword_sets.append({
                 word.casefold() for word in self._words(answer)
-                if word.casefold() not in KEYWORD_STOPWORDS and len(word) > 1
+                if (
+                    (word.casefold() not in KEYWORD_STOPWORDS and len(word) > 1)
+                    or (len(word) == 1 and word.isupper())
+                )
             })
         shared = reduce(set.intersection, keyword_sets) if keyword_sets else set()
         if not shared and keyword_sets:

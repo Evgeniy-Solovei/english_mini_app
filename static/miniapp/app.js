@@ -6,6 +6,7 @@ const state = {
   exerciseIndex: 0,
   currentLesson: null,
   selectedLessonLevel: null,
+  selectedLessonTrack: 'main',
   words: [],
   books: [],
   reviews: [],
@@ -152,6 +153,8 @@ function renderDashboard() {
   document.getElementById('lbl-stat-lessons').textContent = isEn ? 'Lessons Done' : 'Пройдено';
   document.getElementById('lbl-profile-skills-title').textContent = isEn ? 'Detailed Skill Progress' : 'Прогресс по навыкам';
 
+  renderTrackControls();
+
   // Sync Settings Buttons active state
   syncProfileSettingsUI(d);
 }
@@ -239,19 +242,47 @@ function renderLevelPills() {
   });
 }
 
+function renderTrackControls() {
+  const container = document.getElementById('course-track-tabs');
+  if (!container) return;
+  const isEn = state.dashboard?.language_code === 'en';
+  container.querySelector('[data-track="main"]').textContent = isEn ? '📘 Main course' : '📘 Основной курс';
+  container.querySelector('[data-track="it"]').textContent = '💻 English for IT';
+  container.querySelectorAll('.course-track-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.track === state.selectedLessonTrack);
+    btn.onclick = () => {
+      state.selectedLessonTrack = btn.dataset.track;
+      renderTrackControls();
+      renderLessons();
+    };
+  });
+  const note = document.getElementById('track-note');
+  if (state.selectedLessonTrack === 'it') {
+    note.textContent = isEn
+      ? 'Backend English: devices, login, errors, API, PostgreSQL, Git, debugging and deployment.'
+      : 'Английский для backend: устройства, логин, ошибки, API, PostgreSQL, Git, отладка и деплой.';
+  } else {
+    note.textContent = isEn
+      ? 'Start with the alphabet and reading rules, then move on to everyday communication.'
+      : 'Начните с алфавита и правил чтения, затем переходите к бытовому общению.';
+  }
+}
+
 function renderLessons() {
   const list = document.getElementById('lessons-list');
   const isEn = state.dashboard?.language_code === 'en';
-  if (!state.lessons.length) {
+  const visibleLessons = state.lessons.filter(l => (l.track || 'main') === state.selectedLessonTrack);
+  if (!visibleLessons.length) {
     list.innerHTML = `<p style="text-align:center;color:#8a8075;padding:20px">${isEn ? 'No lessons for this level yet' : 'Для этого уровня уроков пока нет'}</p>`;
     return;
   }
-  list.innerHTML = state.lessons.map(l => `
+  list.innerHTML = visibleLessons.map((l, index) => `
     <div class="lesson-item ${l.status} ${l.is_locked ? 'locked' : ''}" data-id="${l.id}" data-locked="${l.is_locked ? '1' : '0'}">
-      <div class="lesson-num">${l.is_locked ? '🔒' : (l.status === 'completed' ? '✓' : l.order)}</div>
+      <div class="lesson-num">${l.is_locked ? '🔒' : (l.status === 'completed' ? '✓' : index + 1)}</div>
       <div class="lesson-info">
         <h3>${l.title}</h3>
         <p>${(!isEn && l.title_ru) ? l.title_ru + ' · ' : ''}${l.estimated_minutes} min</p>
+        ${l.track === 'it' ? '<span class="lesson-track-tag">💻 English for IT</span>' : ''}
       </div>
       <div class="lesson-meta">
         ${l.score > 0 ? `<div>${Math.round(l.score)}%</div>` : ''}

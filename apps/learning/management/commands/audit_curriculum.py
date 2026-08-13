@@ -13,8 +13,8 @@ class Command(BaseCommand):
         problems = []
         lessons = Lesson.objects.filter(is_published=True, level__in=["PRE_A1", "A1"])
         by_level = Counter(lessons.values_list("level", flat=True))
-        if by_level["PRE_A1"] < 42:
-            problems.append("Pre-A1 must contain at least 42 lessons including IT")
+        if by_level["PRE_A1"] < 78:
+            problems.append("Pre-A1 must contain at least 78 lessons including reading foundations and IT")
         if by_level["A1"] < 114:
             problems.append("A1 must contain at least 114 lessons including IT")
 

@@ -153,6 +153,9 @@ def advance_level_if_ready(user: LearnerProfile) -> str | None:
 def get_dashboard_stats(user: LearnerProfile) -> dict:
     from .models import Lesson, SRSItem
 
+    # Opening the learning app is a real daily return. update_streak is
+    # idempotent for the same local date, so API refreshes do not add days.
+    user.update_streak()
     today = timezone.localdate()
     due_reviews = SRSItem.objects.filter(user=user, next_review__lte=today).count()
     total_lessons = Lesson.objects.filter(level=user.current_level, is_published=True).count()

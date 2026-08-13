@@ -42,6 +42,7 @@ class LessonOut(Schema):
     status: str
     score: float
     order: int
+    track: str = "main"
     is_locked: bool = False
 
 
@@ -176,6 +177,7 @@ def lessons(request, level: str | None = None):
                 status=prog.status if prog else "not_started",
                 score=prog.score if prog else 0,
                 order=lesson.order,
+                track=_lesson_track(lesson),
                 is_locked=_lesson_is_locked(user, lesson),
             )
         )
@@ -210,6 +212,12 @@ def lesson_detail(request, lesson_id: int):
     }
 
 
+def _lesson_track(lesson) -> str:
+    return lesson.content.get(
+        "track", "it" if lesson.sub_level.startswith("IT") else "main"
+    )
+
+
 def _lesson_is_locked(user, lesson) -> bool:
     level_order = [CEFRLevel.PRE_A1, CEFRLevel.A1, CEFRLevel.A2, CEFRLevel.B1,
                    CEFRLevel.B2, CEFRLevel.C1, CEFRLevel.C2]
@@ -217,9 +225,14 @@ def _lesson_is_locked(user, lesson) -> bool:
         return True
     if level_order.index(lesson.level) < level_order.index(user.current_level):
         return False
-    previous = Lesson.objects.filter(
+    track = _lesson_track(lesson)
+    candidates = Lesson.objects.filter(
         level=lesson.level, is_published=True, order__lt=lesson.order
-    ).order_by("-order").first()
+    ).order_by("-order")
+    previous = next(
+        (candidate for candidate in candidates if _lesson_track(candidate) == track),
+        None,
+    )
     if not previous:
         return False
     return not LessonProgress.objects.filter(

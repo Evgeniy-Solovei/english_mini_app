@@ -4,7 +4,7 @@ Telegram-бот и мини-приложение для взрослого из�
 
 ## Возможности
 
-- **Полный маршрут Pre-A1/A1** — 52 модуля и 156 занятий, включая Backend English
+- **Полный маршрут Pre-A1/A1** — 64 модуля и 192 занятия, включая основы чтения и Backend English
 - **Упражнения** — выбор ответа, перевод, заполнение пропусков, произношение
 - **Голосовой модуль** — TTS (gTTS) и STT (SpeechRecognition)
 - **Spaced Repetition** — алгоритм SM-2 для повторения
@@ -33,7 +33,7 @@ cp .env.example .env
 
 ```bash
 python manage.py migrate
-python manage.py seed_content  # 156 lessons + speaking/writing missions + reading
+python manage.py seed_content  # 192 lessons + speaking/writing missions + reading
 python manage.py audit_curriculum
 python manage.py createsuperuser  # опционально, для админки
 ```

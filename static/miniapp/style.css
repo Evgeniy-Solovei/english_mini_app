@@ -114,6 +114,11 @@ body {
 .level-pill { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
 .level-pill.active { background: var(--accent); color: white; border-color: var(--accent); font-weight: 700; }
 
+.course-track-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.course-track-btn { padding: 10px 8px; border: 1px solid var(--border); border-radius: 11px; background: var(--bg-card); color: var(--text-muted); font: 600 12px var(--font); cursor: pointer; }
+.course-track-btn.active { color: white; background: var(--accent); border-color: var(--accent); }
+.track-note { padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: var(--accent-soft); color: #315f53; font-size: 12px; line-height: 1.4; }
+
 .lessons-list { display: flex; flex-direction: column; gap: 10px; }
 .lesson-item { background: var(--bg-card); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.15s, border-color 0.15s; }
 .lesson-item:active { transform: scale(0.98); }
@@ -124,6 +129,7 @@ body {
 .lesson-info { flex: 1; }
 .lesson-info h3 { font-size: 14px; font-weight: 600; }
 .lesson-info p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.lesson-track-tag { display: inline-block; margin-top: 5px; padding: 2px 7px; border-radius: 8px; background: #edf3ff; color: #315c9b; font-size: 10px; font-weight: 700; }
 .lesson-meta { text-align: right; font-size: 11px; color: var(--text-muted); }
 .lesson-meta .xp { font-weight: 700; color: var(--accent); }
 

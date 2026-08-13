@@ -19,9 +19,12 @@ class LearningApiTests(TestCase):
 
     def test_beginner_course_has_a_clear_sequence(self):
         lessons = Lesson.objects.filter(level=CEFRLevel.PRE_A1, is_published=True)
-        self.assertEqual(lessons.count(), 42)
-        self.assertEqual(list(lessons.values_list("order", flat=True)), list(range(1, 43)))
+        self.assertEqual(lessons.count(), 78)
+        self.assertEqual(list(lessons.values_list("order", flat=True)), list(range(1, 79)))
         self.assertTrue(all(lesson.exercises.count() >= 6 for lesson in lessons))
+        first = lessons.first()
+        self.assertEqual(first.content["module_code"], "F01")
+        self.assertTrue(first.content["foundation"])
 
     def test_a1_is_a_full_114_lesson_path(self):
         lessons = Lesson.objects.filter(level=CEFRLevel.A1, is_published=True)
@@ -35,9 +38,9 @@ class LearningApiTests(TestCase):
         modules = {}
         for lesson in lessons:
             modules.setdefault(lesson.content["module_code"], set()).add(lesson.content["lesson_kind"])
-        self.assertEqual(len(modules), 52)
+        self.assertEqual(len(modules), 64)
         self.assertTrue(all(kinds == {"input", "build", "mission"} for kinds in modules.values()))
-        self.assertEqual(DialogueScenario.objects.filter(is_published=True).count(), 52)
+        self.assertEqual(DialogueScenario.objects.filter(is_published=True).count(), 64)
 
     def test_curriculum_quality_gate_passes(self):
         call_command("audit_curriculum", verbosity=0)
@@ -45,7 +48,23 @@ class LearningApiTests(TestCase):
     def test_lesson_score_counts_unstarted_lessons(self):
         first = Lesson.objects.get(level=CEFRLevel.PRE_A1, order=1)
         LessonProgress.objects.create(user=self.user, lesson=first, score=100, status="completed")
-        self.assertEqual(calculate_level_score(self.user, CEFRLevel.PRE_A1), 2.4)
+        self.assertEqual(calculate_level_score(self.user, CEFRLevel.PRE_A1), 1.3)
+
+    def test_opening_app_starts_streak_once_per_day(self):
+        first = self.client.get("/api/dashboard")
+        second = self.client.get("/api/dashboard")
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["streak_days"], 1)
+        self.assertEqual(second.json()["streak_days"], 1)
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.last_activity_date)
+
+    def test_it_track_starts_independently_from_main_course(self):
+        first_it = Lesson.objects.filter(
+            level=CEFRLevel.PRE_A1, sub_level="ITP01"
+        ).order_by("order").first()
+        response = self.client.get(f"/api/lessons/{first_it.id}")
+        self.assertEqual(response.status_code, 200)
 
     def test_answer_is_tolerant_to_case_and_punctuation(self):
         self.user.current_level = CEFRLevel.A1
@@ -139,7 +158,7 @@ class LearningApiTests(TestCase):
             Lesson.objects.filter(sub_level__startswith="IT", is_published=True).count(), 36
         )
         self.assertEqual(
-            Exercise.objects.filter(exercise_type=Exercise.ExerciseType.WRITE).count(), 52
+            Exercise.objects.filter(exercise_type=Exercise.ExerciseType.WRITE).count(), 64
         )
 
     def test_wrong_answer_enters_adaptive_review(self):
