@@ -133,6 +133,16 @@ body {
 .lesson-meta { text-align: right; font-size: 11px; color: var(--text-muted); }
 .lesson-meta .xp { font-weight: 700; color: var(--accent); }
 
+.example-audio { width: 100%; text-align: left; border: 1px solid var(--border); cursor: pointer; color: inherit; font: inherit; }
+.example-audio:active { background: var(--accent-soft); }
+.alphabet-key { min-width: 92px; flex: 1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 7px; padding: 10px; border: 1px solid #c8ded6; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font: inherit; text-align: left; cursor: pointer; }
+.alphabet-key b { font-size: 17px; }
+.alphabet-key small { grid-column: 1 / -1; color: var(--text-muted); font-size: 11px; }
+.alphabet-key span { grid-column: 2; grid-row: 1; }
+.study-complete-card { margin: 16px 0 24px; padding: 16px; border: 1px solid #b9d9cf; border-radius: 14px; background: linear-gradient(135deg, #edf7f3, #fff); }
+.study-complete-card p { margin-bottom: 12px; color: #45665d; font-size: 13px; line-height: 1.45; }
+.study-complete-card .btn-primary { width: 100%; background: var(--accent); color: white; }
+
 /* Inline Settings Block in Profile Tab */
 .settings-card { background: var(--bg-card); border-radius: var(--radius); padding: 16px; margin-bottom: 18px; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .settings-card-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; }

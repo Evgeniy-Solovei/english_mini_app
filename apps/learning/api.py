@@ -1,3 +1,5 @@
+import random
+
 from ninja import NinjaAPI, Schema
 from ninja.errors import HttpError
 
@@ -248,26 +250,35 @@ def lesson_exercises(request, lesson_id: int):
         raise HttpError(404, "Lesson not found")
     if _lesson_is_locked(user, lesson):
         raise HttpError(403, "Complete the previous lesson first")
-    exercises = Exercise.objects.filter(lesson_id=lesson_id).order_by("order")
+    exercises = list(Exercise.objects.filter(lesson_id=lesson_id).order_by("order"))
+    random.SystemRandom().shuffle(exercises)
     return [
         ExerciseOut(
             id=e.id,
             exercise_type=e.exercise_type,
             question=e.question,
             question_ru=e.question_ru,
-            data={
-                k: v for k, v in e.data.items()
-                if k not in {
-                    "correct_answer", "alternatives", "expected_keywords",
-                    "srs_front", "srs_back",
-                }
-            },
+            data=_public_exercise_data(e.data),
             points=e.points,
             skill=e.skill,
             order=e.order,
         )
         for e in exercises
     ]
+
+
+def _public_exercise_data(data: dict) -> dict:
+    public = {
+        key: value for key, value in data.items()
+        if key not in {
+            "correct_answer", "alternatives", "expected_keywords",
+            "srs_front", "srs_back",
+        }
+    }
+    if isinstance(public.get("options"), list):
+        public["options"] = list(public["options"])
+        random.SystemRandom().shuffle(public["options"])
+    return public
 
 
 @api.post("/exercises/{exercise_id}/answer", response=AnswerOut)

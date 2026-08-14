@@ -5,6 +5,7 @@ const state = {
   exercises: [],
   exerciseIndex: 0,
   currentLesson: null,
+  lessonStage: 'learn',
   selectedLessonLevel: null,
   selectedLessonTrack: 'main',
   words: [],
@@ -305,9 +306,11 @@ async function openLesson(id) {
   state.currentLesson = await apiFetch(`/lessons/${id}`);
   state.exercises = await apiFetch(`/lessons/${id}/exercises`);
   state.exerciseIndex = 0;
+  state.lessonStage = 'learn';
   document.getElementById('lesson-title').textContent = state.currentLesson.title;
   renderLessonContent();
-  renderExercise();
+  document.getElementById('lesson-content').classList.remove('hidden');
+  document.getElementById('exercise-area').classList.add('hidden');
   document.getElementById('lesson-overlay').classList.remove('hidden');
 }
 
@@ -322,15 +325,32 @@ function renderLessonContent() {
   }
   el.innerHTML = content.blocks.map(b => {
     if (b.type === 'text') return `<div class="lesson-block"><h3>${b.title || ''}</h3><p>${b.body}</p></div>`;
-    if (b.type === 'example') return `<div class="lesson-block"><div class="example">${b.en}${(!isEn && b.ru) ? `<br><small>${b.ru}</small>` : ''}</div></div>`;
+    if (b.type === 'example') return `<button type="button" class="lesson-block example-audio" data-audio="${escapeHtml(b.audio || b.en)}"><span class="example">🔊 ${b.en}${(!isEn && b.ru) ? `<br><small>${b.ru}</small>` : ''}</span></button>`;
     if (b.type === 'alphabet') {
       return `<div class="lesson-block"><h3>${b.title}</h3><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${b.letters.map(l =>
-        `<span style="background:#e4f0eb;padding:8px 12px;border-radius:8px;font-weight:700;color:#2f6f5e">${l.char} <small style="font-weight:400;color:#8a8075">${l.sound}</small></span>`
+        `<button type="button" class="alphabet-key" data-audio="${escapeHtml(l.char.split(' ')[0])}"><b>${l.char}</b><small>${l.sound}</small><span>🔊</span></button>`
       ).join('')}</div></div>`;
     }
     if (b.type === 'reading') return `<div class="lesson-block"><h3>${b.title || 'Reading'}</h3><div class="reading-body">${b.body}</div></div>`;
     return '';
-  }).join('');
+  }).join('') + `
+    <div class="study-complete-card">
+      <p>${isEn ? 'Listen to every example. When you are ready, the material will be hidden and practice will begin.' : 'Прослушайте буквы и примеры. После старта материал скроется — ответы списать будет нельзя.'}</p>
+      <button class="btn-primary" id="btn-start-lesson-practice">${isEn ? 'Start practice' : 'Начать тренировку'}</button>
+    </div>`;
+
+  el.querySelectorAll('[data-audio]').forEach(button => {
+    button.addEventListener('click', () => playTts(button.dataset.audio || ''));
+  });
+  document.getElementById('btn-start-lesson-practice')?.addEventListener('click', startLessonPractice);
+}
+
+function startLessonPractice() {
+  state.lessonStage = 'practice';
+  document.getElementById('lesson-content').classList.add('hidden');
+  document.getElementById('exercise-area').classList.remove('hidden');
+  renderExercise();
+  document.getElementById('lesson-overlay').scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderExercise() {
@@ -478,7 +498,8 @@ function showLessonCompletionCard(result) {
       </div>
     </div>`;
 
-  document.getElementById('btn-comp-retake')?.addEventListener('click', () => {
+  document.getElementById('btn-comp-retake')?.addEventListener('click', async () => {
+    state.exercises = await apiFetch(`/lessons/${state.currentLesson.id}/exercises`);
     state.exerciseIndex = 0;
     renderExercise();
   });

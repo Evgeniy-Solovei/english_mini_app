@@ -89,9 +89,12 @@ class Command(BaseCommand):
                 xp_reward=20 if kind != "mission" else 30,
                 is_published=True,
             )
-            specs = self._input_specs(phrases) if kind == "input" else (
-                self._build_specs(phrases) if kind == "build" else self._mission_specs(module, previous)
-            )
+            if module.get("alphabet") and kind in {"input", "build"}:
+                specs = self._alphabet_specs(module, kind)
+            else:
+                specs = self._input_specs(phrases) if kind == "input" else (
+                    self._build_specs(phrases) if kind == "build" else self._mission_specs(module, previous)
+                )
             for ex_order, spec in enumerate(specs, 1):
                 Exercise.objects.create(lesson=lesson, order=ex_order, **spec)
 
@@ -115,7 +118,10 @@ class Command(BaseCommand):
         if kind == "build":
             blocks.append({"type": "text", "title": "Как строится фраза", "body": module["grammar"]})
         for english, russian in module["phrases"]:
-            blocks.append({"type": "example", "en": english, "ru": russian})
+            blocks.append({
+                "type": "example", "en": english, "ru": russian,
+                "audio": self._audio_text(english),
+            })
         if kind == "mission":
             blocks.append({"type": "text", "title": "Задача без перевода", "body": module["mission"][1]})
         return blocks
@@ -126,11 +132,32 @@ class Command(BaseCommand):
         for i, (english, russian) in enumerate(phrases[:3]):
             options = [russian, translations[(i + 1) % len(translations)], translations[(i + 2) % len(translations)]]
             specs.append(self._spec("listen", f"Прослушайте и выберите смысл фразы {i + 1}", "Сначала слушайте, затем отвечайте.",
-                                    russian, options=options, audio_text=english, skill="listening"))
+                                    russian, options=options, audio_text=self._audio_text(english), skill="listening"))
         for i, (english, russian) in enumerate(phrases[3:6], 3):
             options = [english, phrases[(i + 1) % len(phrases)][0], phrases[(i + 2) % len(phrases)][0]]
             specs.append(self._spec("mc", f"Как сказать: «{russian}»?", "Выберите готовую английскую фразу.",
                                     english, options=options, skill="vocabulary", srs=(english, russian)))
+        return specs
+
+    def _alphabet_specs(self, module, kind):
+        letters = module["alphabet"]
+        selected = letters[::2] if kind == "input" else letters[1::2]
+        specs = []
+        for index, (char, sound) in enumerate(selected):
+            alternatives = [letters[(letters.index((char, sound)) + shift) % len(letters)] for shift in (1, 2)]
+            if kind == "input":
+                correct = char.split()[0]
+                options = [correct, *[item[0].split()[0] for item in alternatives]]
+                specs.append(self._spec(
+                    "listen", "Какую букву вы услышали?", "Не смотрите в таблицу: слушайте название буквы.",
+                    correct, options=options, audio_text=correct, skill="alphabet",
+                ))
+            else:
+                options = [sound, *[item[1] for item in alternatives]]
+                specs.append(self._spec(
+                    "mc", f"Как называется буква {char}?", "Выберите английское название буквы.",
+                    sound, options=options, skill="alphabet",
+                ))
         return specs
 
     def _build_specs(self, phrases):
@@ -151,7 +178,7 @@ class Command(BaseCommand):
                                 english, skill="writing", srs=(english, russian)))
         english, russian = phrases[5]
         specs.append(self._spec("speak", f"Скажите вслух: {english}", russian, english,
-                                audio_text=english, skill="speaking"))
+                                audio_text=self._audio_text(english), skill="speaking"))
         return specs
 
     def _mission_specs(self, module, previous):
@@ -162,7 +189,7 @@ class Command(BaseCommand):
                                     english, skill="writing", srs=(english, russian)))
         for english, russian in phrases[:2]:
             specs.append(self._spec("listen", "Что вы услышали?", "Выберите точную фразу.", english,
-                                    options=[english, phrases[2][0], phrases[3][0]], audio_text=english, skill="listening"))
+                                    options=[english, phrases[2][0], phrases[3][0]], audio_text=self._audio_text(english), skill="listening"))
         prompt, hint, answers = module["mission"]
         specs.append(self._spec("read", f"Прочитайте реплику: “{prompt}”", "Что от вас требуется?",
                                 hint, options=[hint, "Назвать отдельное слово без связи", "Перевести весь учебник"],
@@ -291,6 +318,11 @@ class Command(BaseCommand):
     @staticmethod
     def _words(text):
         return re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?|\d+", text)
+
+    @staticmethod
+    def _audio_text(text):
+        text = re.sub(r"\s+—\s+/[^/]+/.*$", "", text)
+        return text.replace(" — ", ", ")
 
     def _shared_keywords(self, answers):
         """Keep the meaning-bearing words shared by valid model replies.

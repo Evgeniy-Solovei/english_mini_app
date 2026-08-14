@@ -1,5 +1,6 @@
 from django.core.management import call_command
 from django.test import Client, TestCase, override_settings
+from unittest.mock import patch
 
 from apps.learning.models import Exercise, Lesson, LessonProgress, LevelExam
 from apps.learning.services import calculate_level_score
@@ -25,6 +26,45 @@ class LearningApiTests(TestCase):
         first = lessons.first()
         self.assertEqual(first.content["module_code"], "F01")
         self.assertTrue(first.content["foundation"])
+        self.assertTrue(any(block["type"] == "alphabet" for block in first.content["blocks"]))
+        self.assertTrue(all(
+            block.get("audio") for block in first.content["blocks"]
+            if block["type"] == "example"
+        ))
+
+    def test_alphabet_lesson_uses_letter_listening_exercises(self):
+        lesson = Lesson.objects.get(
+            level=CEFRLevel.PRE_A1,
+            content__module_code="F01",
+            content__lesson_kind="input",
+        )
+        exercises = list(lesson.exercises.all())
+        self.assertEqual(len(exercises), 7)
+        self.assertTrue(all(exercise.exercise_type == "listen" for exercise in exercises))
+        self.assertTrue(all(
+            len(exercise.data["audio_text"]) == 1 and exercise.data["audio_text"].isupper()
+            for exercise in exercises
+        ))
+
+    def test_exercises_and_options_are_shuffled_without_leaking_answers(self):
+        lesson = Lesson.objects.get(level=CEFRLevel.PRE_A1, order=1)
+        original = list(lesson.exercises.order_by("order"))
+
+        with patch(
+            "apps.learning.api.random.SystemRandom.shuffle",
+            side_effect=lambda values: values.reverse(),
+        ):
+            response = self.client.get(f"/api/lessons/{lesson.id}/exercises")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([item["id"] for item in payload], [item.id for item in reversed(original)])
+        by_id = {exercise.id: exercise for exercise in original}
+        for item in payload:
+            source = by_id[item["id"]]
+            self.assertNotIn("correct_answer", item["data"])
+            if source.data.get("options"):
+                self.assertEqual(item["data"]["options"], list(reversed(source.data["options"])))
 
     def test_a1_is_a_full_114_lesson_path(self):
         lessons = Lesson.objects.filter(level=CEFRLevel.A1, is_published=True)
