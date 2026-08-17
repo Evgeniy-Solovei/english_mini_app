@@ -1,8 +1,11 @@
-from django.core.management import call_command
-from django.test import Client, TestCase, override_settings
+from datetime import timedelta
 from unittest.mock import patch
 
-from apps.learning.models import Exercise, Lesson, LessonProgress, LevelExam
+from django.core.management import call_command
+from django.test import Client, TestCase, override_settings
+from django.utils import timezone
+
+from apps.learning.models import DailySession, Exercise, Lesson, LessonProgress, LevelExam
 from apps.learning.services import calculate_level_score
 from apps.users.models import CEFRLevel, LearnerProfile
 
@@ -45,6 +48,10 @@ class LearningApiTests(TestCase):
             len(exercise.data["audio_text"]) == 1 and exercise.data["audio_text"].isupper()
             for exercise in exercises
         ))
+        self.assertFalse(Exercise.objects.filter(
+            lesson__content__foundation=True,
+            exercise_type=Exercise.ExerciseType.WRITE,
+        ).exists())
 
     def test_exercises_and_options_are_shuffled_without_leaking_answers(self):
         lesson = Lesson.objects.get(level=CEFRLevel.PRE_A1, order=1)
@@ -98,6 +105,32 @@ class LearningApiTests(TestCase):
         self.assertEqual(second.json()["streak_days"], 1)
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.last_activity_date)
+
+    def test_streak_is_derived_from_consecutive_visit_days(self):
+        today = timezone.localdate()
+        DailySession.objects.create(user=self.user, date=today - timedelta(days=2))
+        DailySession.objects.create(user=self.user, date=today - timedelta(days=1))
+
+        response = self.client.get("/api/dashboard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["streak_days"], 3)
+
+    def test_activity_heartbeat_counts_real_elapsed_time(self):
+        started = timezone.now()
+        DailySession.objects.create(
+            user=self.user,
+            date=started.date(),
+            last_heartbeat_at=started - timedelta(seconds=61),
+        )
+        with patch("apps.learning.services.timezone.localdate", return_value=started.date()), patch(
+            "apps.learning.services.timezone.now", return_value=started,
+        ):
+            response = self.client.post("/api/activity/ping")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["active_seconds"], 61)
+        self.assertEqual(response.json()["minutes_today"], 1)
 
     def test_it_track_starts_independently_from_main_course(self):
         first_it = Lesson.objects.filter(
@@ -198,7 +231,7 @@ class LearningApiTests(TestCase):
             Lesson.objects.filter(sub_level__startswith="IT", is_published=True).count(), 36
         )
         self.assertEqual(
-            Exercise.objects.filter(exercise_type=Exercise.ExerciseType.WRITE).count(), 64
+            Exercise.objects.filter(exercise_type=Exercise.ExerciseType.WRITE).count(), 52
         )
 
     def test_wrong_answer_enters_adaptive_review(self):
@@ -213,6 +246,7 @@ class LearningApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(SRSItem.objects.filter(user=self.user, lesson=exercise.lesson).exists())
+        self.assertEqual(DailySession.objects.get(user=self.user).minutes_spent, 0)
 
     def test_exam_covers_all_four_cefr_skills(self):
         exam = LevelExam.objects.get(level=CEFRLevel.A1)

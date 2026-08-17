@@ -167,6 +167,8 @@ class DailySession(models.Model):
     user = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name="sessions")
     date = models.DateField()
     minutes_spent = models.PositiveSmallIntegerField(default=0)
+    active_seconds = models.PositiveIntegerField(default=0)
+    last_heartbeat_at = models.DateTimeField(null=True, blank=True)
     xp_earned = models.PositiveIntegerField(default=0)
     lessons_completed = models.PositiveSmallIntegerField(default=0)
     exercises_done = models.PositiveSmallIntegerField(default=0)

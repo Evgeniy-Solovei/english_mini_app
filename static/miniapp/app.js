@@ -39,12 +39,27 @@ async function apiFetch(endpoint, options = {}) {
   if (options.body && typeof options.body === 'string') {
     headers['Content-Type'] = 'application/json';
   }
-  const res = await fetch(`/api${endpoint}`, { ...options, headers });
+  const res = await fetchWithTimeout(`/api${endpoint}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || err.message || `API error ${res.status}`);
+    throw new Error(err.detail || err.message || `Сервер вернул ошибку ${res.status}`);
   }
   return res.json();
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Сервер не ответил за 20 секунд. Проверьте интернет и попробуйте ещё раз.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function escapeHtml(value) {
@@ -98,8 +113,8 @@ function renderDashboard() {
   document.getElementById('lbl-tab-profile').textContent = isEn ? 'Profile' : 'Профиль';
 
   // Home Banners
-  document.getElementById('home-daily-title').textContent = isEn ? 'Daily Goal' : 'Дневная цель';
-  document.getElementById('daily-goal-text').textContent = isEn ? `${d.minutes_today} / ${d.daily_goal} min` : `${d.minutes_today} / ${d.daily_goal} мин`;
+  document.getElementById('home-daily-title').textContent = isEn ? 'Active study today' : 'Активное обучение сегодня';
+  document.getElementById('daily-goal-text').textContent = isEn ? `${d.minutes_today} / ${d.daily_goal} active min` : `${d.minutes_today} / ${d.daily_goal} активных мин`;
   document.getElementById('btn-start-daily').textContent = isEn ? 'Start' : 'Начать';
 
   document.getElementById('home-speak-title').textContent = isEn ? 'Speaking Practice' : 'Разговорная практика';
@@ -303,15 +318,20 @@ function renderLessons() {
 }
 
 async function openLesson(id) {
-  state.currentLesson = await apiFetch(`/lessons/${id}`);
-  state.exercises = await apiFetch(`/lessons/${id}/exercises`);
-  state.exerciseIndex = 0;
-  state.lessonStage = 'learn';
-  document.getElementById('lesson-title').textContent = state.currentLesson.title;
-  renderLessonContent();
-  document.getElementById('lesson-content').classList.remove('hidden');
-  document.getElementById('exercise-area').classList.add('hidden');
-  document.getElementById('lesson-overlay').classList.remove('hidden');
+  try {
+    showToast('Загружаю урок…');
+    state.currentLesson = await apiFetch(`/lessons/${id}`);
+    state.exercises = await apiFetch(`/lessons/${id}/exercises`);
+    state.exerciseIndex = 0;
+    state.lessonStage = 'learn';
+    document.getElementById('lesson-title').textContent = state.currentLesson.title;
+    renderLessonContent();
+    document.getElementById('lesson-content').classList.remove('hidden');
+    document.getElementById('exercise-area').classList.add('hidden');
+    document.getElementById('lesson-overlay').classList.remove('hidden');
+  } catch (error) {
+    showToast(error.message || 'Не удалось загрузить урок. Попробуйте ещё раз.');
+  }
 }
 
 function renderLessonContent() {
@@ -841,7 +861,21 @@ function renderShadowPhrase() {
 
 function playTts(text, slow = false, voice = '') {
   const selectedVoice = voice || (text.length % 2 ? 'female' : 'male');
-  new Audio(`/voice/tts/?text=${encodeURIComponent(text)}&slow=${slow ? '1' : '0'}&voice=${encodeURIComponent(selectedVoice)}`).play().catch(() => showToast('Не удалось воспроизвести аудио'));
+  const player = new Audio(`/voice/tts/?text=${encodeURIComponent(text)}&slow=${slow ? '1' : '0'}&voice=${encodeURIComponent(selectedVoice)}`);
+  const timeout = setTimeout(() => {
+    player.pause();
+    showToast('Аудио не загрузилось. Проверьте соединение и нажмите ещё раз.');
+  }, 15000);
+  const clearAudioTimeout = () => clearTimeout(timeout);
+  player.addEventListener('playing', clearAudioTimeout, { once: true });
+  player.addEventListener('error', () => {
+    clearAudioTimeout();
+    showToast('Не удалось загрузить аудио. Нажмите ещё раз.');
+  }, { once: true });
+  player.play().catch(() => {
+    clearAudioTimeout();
+    showToast('Не удалось воспроизвести аудио.');
+  });
 }
 
 async function openDialogue(id) {
@@ -915,7 +949,7 @@ async function recordDialogueReply() {
       form.append('audio', new Blob(state.audioChunks, { type: mimeType }), 'dialogue.webm');
       form.append('turn_index', String(state.dialogueTurn));
       try {
-        const response = await fetch(`/api/speak/dialogues/${state.currentDialogue.id}/reply`, {
+        const response = await fetchWithTimeout(`/api/speak/dialogues/${state.currentDialogue.id}/reply`, {
           method: 'POST', headers: { 'X-Telegram-Init-Data': getInitData() }, body: form,
         });
         const result = await response.json();
@@ -1011,7 +1045,7 @@ async function recordAndScore(expected, onResult, phraseId = null) {
       if (phraseId) fd.append('phrase_id', String(phraseId));
 
       try {
-        const res = await fetch('/api/speak/pronounce', {
+        const res = await fetchWithTimeout('/api/speak/pronounce', {
           method: 'POST',
           headers: { 'X-Telegram-Init-Data': getInitData() },
           body: fd,
@@ -1049,7 +1083,7 @@ async function recordToText(onText) {
       const form = new FormData();
       form.append('audio', new Blob(state.audioChunks, { type: mimeType }), 'answer.webm');
       try {
-        const response = await fetch('/api/speak/transcribe', {
+        const response = await fetchWithTimeout('/api/speak/transcribe', {
           method: 'POST', headers: { 'X-Telegram-Init-Data': getInitData() }, body: form,
         });
         const result = await response.json();
@@ -1072,7 +1106,39 @@ async function init() {
   setupTabs();
   setupButtons();
   await loadDashboard();
+  startActivityTracking();
   await loadLessons();
+}
+
+let activityTimer = null;
+
+async function pingActivity() {
+  if (document.visibilityState !== 'visible') return;
+  try {
+    const activity = await apiFetch('/activity/ping', { method: 'POST' });
+    if (!state.dashboard) return;
+    state.dashboard.minutes_today = activity.minutes_today;
+    state.dashboard.streak_days = activity.streak_days;
+    state.dashboard.longest_streak = activity.longest_streak;
+    document.getElementById('streak-count').textContent = activity.streak_days;
+    document.getElementById('stat-streak').textContent = activity.streak_days;
+    document.getElementById('stat-best').textContent = activity.longest_streak;
+    const isEn = state.dashboard.language_code === 'en';
+    document.getElementById('daily-goal-text').textContent = isEn
+      ? `${activity.minutes_today} / ${state.dashboard.daily_goal} active min`
+      : `${activity.minutes_today} / ${state.dashboard.daily_goal} активных мин`;
+  } catch (error) {
+    console.warn('Activity heartbeat failed:', error);
+  }
+}
+
+function startActivityTracking() {
+  pingActivity();
+  if (activityTimer) clearInterval(activityTimer);
+  activityTimer = setInterval(pingActivity, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') pingActivity();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);

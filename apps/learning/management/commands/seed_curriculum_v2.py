@@ -91,6 +91,8 @@ class Command(BaseCommand):
             )
             if module.get("alphabet") and kind in {"input", "build"}:
                 specs = self._alphabet_specs(module, kind)
+            elif module.get("foundation") and kind == "mission":
+                specs = self._foundation_mission_specs(module)
             else:
                 specs = self._input_specs(phrases) if kind == "input" else (
                     self._build_specs(phrases) if kind == "build" else self._mission_specs(module, previous)
@@ -158,6 +160,37 @@ class Command(BaseCommand):
                     "mc", f"Как называется буква {char}?", "Выберите английское название буквы.",
                     sound, options=options, skill="alphabet",
                 ))
+        return specs
+
+    def _foundation_mission_specs(self, module):
+        phrases = module["phrases"]
+        specs = []
+        for index, (english, russian) in enumerate(phrases[:2]):
+            specs.append(self._spec(
+                "listen", "Прослушайте и выберите услышанный вариант.",
+                "Материал урока скрыт: отвечайте по звуку.", english,
+                options=[english, phrases[index + 2][0], phrases[index + 3][0]],
+                audio_text=self._audio_text(english), skill="listening",
+            ))
+        for index, (english, russian) in enumerate(phrases[2:4], 2):
+            specs.append(self._spec(
+                "mc", f"Какой английский вариант соответствует: «{russian}»?",
+                "Выберите один вариант.", english,
+                options=[english, phrases[(index + 1) % len(phrases)][0], phrases[(index + 2) % len(phrases)][0]],
+                skill="reading",
+            ))
+        english, russian = phrases[4]
+        specs.append(self._spec(
+            "read", f"Прочитайте: {english}", "Выберите значение.", russian,
+            options=[russian, phrases[1][1], phrases[2][1]], skill="reading",
+        ))
+        english, russian = phrases[5]
+        spoken = self._audio_text(english)
+        specs.append(self._spec(
+            "speak", f"Прослушайте образец и повторите: {spoken}",
+            "Нажмите запись, произнесите образец и остановите запись.", spoken,
+            audio_text=spoken, skill="speaking",
+        ))
         return specs
 
     def _build_specs(self, phrases):

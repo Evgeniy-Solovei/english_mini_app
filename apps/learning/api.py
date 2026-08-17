@@ -8,7 +8,12 @@ from apps.users.models import CEFRLevel
 
 from .auth import get_user_from_request
 from .models import Exercise, Lesson, LessonProgress, LevelExam, ReadingText, SRSItem, Word
-from .services import advance_level_if_ready, get_dashboard_stats, record_exercise_result
+from .services import (
+    advance_level_if_ready,
+    get_dashboard_stats,
+    record_exercise_result,
+    register_activity_heartbeat,
+)
 from .srs import quality_from_answer, sm2_update
 
 api = NinjaAPI(title="English Bot API", version="1.0")
@@ -116,6 +121,13 @@ class SettingsIn(Schema):
     daily_goal_minutes: int | None = None
 
 
+class ActivityOut(Schema):
+    minutes_today: int
+    active_seconds: int
+    streak_days: int
+    longest_streak: int
+
+
 def _require_user(request):
     user = get_user_from_request(request)
     if not user:
@@ -156,6 +168,12 @@ def update_settings(request, payload: SettingsIn):
 def dashboard(request):
     user = _require_user(request)
     return get_dashboard_stats(user)
+
+
+@api.post("/activity/ping", response=ActivityOut)
+def activity_ping(request):
+    user = _require_user(request)
+    return register_activity_heartbeat(user)
 
 
 @api.get("/lessons", response=list[LessonOut])

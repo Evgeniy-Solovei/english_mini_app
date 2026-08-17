@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.utils import timezone
 
 from apps.users.models import CEFRLevel, LearnerProfile
@@ -101,7 +103,7 @@ def record_exercise_result(user, exercise, answer: str, is_correct: bool) -> int
 
     progress.save()
     _update_daily_session(user, xp_earned, daily_lesson_completed)
-    user.update_streak()
+    register_daily_visit(user)
     return xp_earned
 
 
@@ -112,10 +114,57 @@ def _update_daily_session(user, xp: int, lesson_completed: bool = False):
     session.exercises_done += 1
     if lesson_completed:
         session.lessons_completed += 1
-    session.minutes_spent = min(session.minutes_spent + 2, 120)
-    session.save()
+    session.save(update_fields=["xp_earned", "exercises_done", "lessons_completed"])
+
+
+def register_daily_visit(user: LearnerProfile) -> DailySession:
+    """Persist a visit day and derive the current consecutive-day streak."""
+    today = timezone.localdate()
+    if user.last_activity_date and user.last_activity_date < today:
+        DailySession.objects.get_or_create(user=user, date=user.last_activity_date)
+    session, _ = DailySession.objects.get_or_create(user=user, date=today)
+
+    visit_dates = set(
+        DailySession.objects.filter(user=user, date__lte=today)
+        .values_list("date", flat=True)
+    )
+    streak = 0
+    cursor = today
+    while cursor in visit_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    user.streak_days = streak
+    user.longest_streak = max(user.longest_streak, streak)
+    user.last_activity_date = today
     user.minutes_today = session.minutes_spent
-    user.save(update_fields=["minutes_today", "updated_at"])
+    user.save(update_fields=[
+        "streak_days", "longest_streak", "last_activity_date",
+        "minutes_today", "updated_at",
+    ])
+    return session
+
+
+def register_activity_heartbeat(user: LearnerProfile) -> dict:
+    """Count real foreground activity between bounded client heartbeats."""
+    session = register_daily_visit(user)
+    now = timezone.now()
+    if session.last_heartbeat_at:
+        elapsed = int((now - session.last_heartbeat_at).total_seconds())
+        if 0 < elapsed <= 90:
+            session.active_seconds += elapsed
+    session.last_heartbeat_at = now
+    session.minutes_spent = min(session.active_seconds // 60, 24 * 60)
+    session.save(update_fields=["active_seconds", "last_heartbeat_at", "minutes_spent"])
+    if user.minutes_today != session.minutes_spent:
+        user.minutes_today = session.minutes_spent
+        user.save(update_fields=["minutes_today", "updated_at"])
+    return {
+        "minutes_today": session.minutes_spent,
+        "active_seconds": session.active_seconds,
+        "streak_days": user.streak_days,
+        "longest_streak": user.longest_streak,
+    }
 
 
 def advance_level_if_ready(user: LearnerProfile) -> str | None:
@@ -153,9 +202,7 @@ def advance_level_if_ready(user: LearnerProfile) -> str | None:
 def get_dashboard_stats(user: LearnerProfile) -> dict:
     from .models import Lesson, SRSItem
 
-    # Opening the learning app is a real daily return. update_streak is
-    # idempotent for the same local date, so API refreshes do not add days.
-    user.update_streak()
+    register_daily_visit(user)
     today = timezone.localdate()
     due_reviews = SRSItem.objects.filter(user=user, next_review__lte=today).count()
     total_lessons = Lesson.objects.filter(level=user.current_level, is_published=True).count()
